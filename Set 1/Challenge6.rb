@@ -12,8 +12,27 @@ end
 
 raise "Wrong hamming Distance" unless hammingDist("this is a test", "wokka wokka!!!")==37
 
-(2..41).each do |KEYSIZE|
+keysizeDir = {}
 
+(2..41).each do |keysize|
 
+	line = "HUIfTQsPAh9PE048GmllH0kcDk4TAQsHThsBFkU2AB4BSWQgVB0dQzNTTmVS"
+	
+	line = line.unpack("m").join
+	
+	firstHalf = line[0..keysize-1]
+	secondHalf = line[keysize..2*keysize-1]
+	
+	normDistance = hammingDist(firstHalf,secondHalf).to_f/keysize.to_f
+
+	
+	keysizeDir[keysize]=normDistance	
 
 end
+
+
+keysizeDir.values.sort.each do |x|
+puts x
+	
+end
+
