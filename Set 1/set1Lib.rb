@@ -2,6 +2,8 @@
 
 # Set 1 Function Library
 
+require 'openssl'
+
 # Challenge 1
 def hexToBase64(hexDigest)
 	return [[hexDigest].pack("H*")].pack("m0")
@@ -71,7 +73,7 @@ def hammingDist(str1, str2)
 	return str1.bytes.zip(str2.bytes).count {|s1,s2| s1 != s2}
 end
 
-def breakIntoBlocks(line, blockSize)
+def breakIntoBlocks(line, blockSize, oneOrTwo)
 	# Holds the results of yielding
 	blockFunctionArray = []
 	
@@ -79,7 +81,7 @@ def breakIntoBlocks(line, blockSize)
 	numberOfBlocks = line.length/blockSize
 	
 	# Subtract two because we jump two at a time
-	(0..numberOfBlocks-2).each do |blockNum|
+	(0..numberOfBlocks-oneOrTwo).each do |blockNum|
 	
 		# This method slides the boundary of the sub-block 
 		# .. based on block sizes
@@ -87,10 +89,15 @@ def breakIntoBlocks(line, blockSize)
 		
 		# Take a two block cut of the sub-block
 		blockOne = subBlock[0..blockSize-1]
-		blockTwo = subBlock[blockSize..(2*blockSize)-1]
 		
-		# Yield to outside function
-		blockFunctionArray << yield(blockOne, blockTwo)	
+		if oneOrTwo == 2
+			blockTwo = subBlock[blockSize..(2*blockSize)-1]
+		
+			# Yield to outside function
+			blockFunctionArray << yield(blockOne, blockTwo)	
+		else 
+			blockFunctionArray << yield(blockOne)	
+		end
 	end
 	
 	return blockFunctionArray
@@ -105,7 +112,7 @@ def scanForMultiByteXORKeySize(ciphertxt)
 	(2..40).each do |keysize|
 		normDistance = 0
 		hamming = Array.new 
-		hamming = breakIntoBlocks(ciphertxt, keysize) do |blockOne, blockTwo|
+		hamming = breakIntoBlocks(ciphertxt, keysize, 2) do |blockOne, blockTwo|
 		
 			#Compute hamming distance
 			hDist = hammingDist(blockOne, blockTwo)
@@ -132,7 +139,7 @@ def findTransposedBlocks(ciphertxt, keysize)
 	transposedHash = {}
 	blockArray = Array.new
 	# Ignore second argument in Proc
-	blockArray = breakIntoBlocks(ciphertxt, keysize) do |blockOne, _|
+	blockArray = breakIntoBlocks(ciphertxt, keysize, 1) do |blockOne|
 		blockOne
 	end
 	
@@ -162,11 +169,39 @@ end
 
 # Challenge 7
 def decryptAES_ECB(ciphertxt, key)
-	require 'openssl'
 	
 	cipher = OpenSSL::Cipher.new 'AES-128-ECB'
 	cipher.decrypt
 	cipher.key = key 
+	# Need padding = 0 for CBC Implementation
+	cipher.padding = 0
 	plaintxt = cipher.update(ciphertxt) + cipher.final
 	return plaintxt 
 end
+
+def encryptAES_ECB(plaintxt, key)
+	
+	cipher = OpenSSL::Cipher.new 'AES-128-ECB'
+	cipher.encrypt
+	cipher.key = key 
+	# Need padding = 0 for CBC Implementation
+	cipher.padding = 0
+	ciphertxt = cipher.update(plaintxt) + cipher.final
+	return ciphertxt
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
