@@ -53,4 +53,3 @@ ct = cbcPaddingArry[1]
 puts cbcPaddingOracleAttack(ivUsed, ct, consistentKey)
 
 
-

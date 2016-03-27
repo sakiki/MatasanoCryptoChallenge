@@ -26,19 +26,25 @@ def decryptAES_CBC(ciphertxtraw, key,iv)
 	blockSize = 16
 	pArray = Array.new
 	ciphertxt = iv+ciphertxtraw
+	
+	
 	breakIntoBlocks(ciphertxt, blockSize, 2) do |blockOne, blockTwo|
 		plainBlock = decryptAES_ECB(blockTwo, key)
 		xorBlock = blockXOR(plainBlock, blockOne)
 		pArray << xorBlock
 	end
 	
-	return pArray.join
+	return unpadPKCS7(pArray.join, blockSize)
 end
 
 def encryptAES_CBC(plaintxtraw, key, iv)
 	# 16 byte block size for 128 bit key
 	blockSize = 16
 	cArray = [iv]
+	
+	padLength = (plaintxtraw.length.to_f/key.length.to_f).ceil*key.length
+	plaintxtraw = padPKCS7(plaintxtraw,padLength)
+	
 	breakIntoBlocks(plaintxtraw, blockSize, 1) do |blockOne|
 		xorBlock = blockXOR(blockOne, cArray[-1])
 		cipherBlock = encryptAES_ECB(xorBlock,key)
@@ -291,15 +297,12 @@ end
 def encryptCookieInputCBC(inputStr, key, iv)
 	inputStr.gsub!(/[;=]/,'')
 	inputStr = "comment1=cooking%20MCs;userdata=" + inputStr + ";comment2=%20like%20a%20pound%20of%20bacon"
-	padLength = (inputStr.length.to_f/16.0).ceil*16
-	inputStr = padPKCS7(inputStr, padLength)
 	ct = encryptAES_CBC(inputStr, key, iv)
 	return ct
 end
 
 def validateCookieInputCBC(ciphertxt, key, iv, debug=nil)
 	pt = decryptAES_CBC(ciphertxt, key, iv)
-	pt = unpadPKCS7(pt, 16)
 	tempDict = kvParse(pt, ';')
 	puts pt if debug == :debug
 	return tempDict['admin'] == "true" ? true: false

@@ -24,18 +24,29 @@ def cbcPaddingOracleEncrypt(key)
 	
 	
 	str = randomStrArray[rand(0..randomStrArray.size-1)].unpack("m").join
-	padLength = (str.length.to_f/key.length.to_f).ceil*key.length
-	plaintxt = padPKCS7(str,padLength)
+	puts str
+
 	iv = randomAESKey16
 
-	ct = encryptAES_CBC(plaintxt, key, iv)
-	
+	ct = encryptAES_CBC(str, key, iv)
 	return [iv, ct]
 end
 
 # Simply validates CBC encryption padding
 def cbcPaddingOracleDecrypt(ct, key, iv)
-	paddedStr = decryptAES_CBC(ct, key, iv)		
+	# 16 byte block size for 128 bit key
+	blockSize = 16
+	pArray = Array.new
+	ciphertxt = iv+ct
+	
+	
+	breakIntoBlocks(ciphertxt, blockSize, 2) do |blockOne, blockTwo|
+		plainBlock = decryptAES_ECB(blockTwo, key)
+		xorBlock = blockXOR(plainBlock, blockOne)
+		pArray << xorBlock
+	end		
+	
+	paddedStr = pArray.join
 
 	blocksize = key.length
 	paddingCount = paddedStr[-1].ord	
@@ -88,8 +99,7 @@ end
 
 # Continue until you are done with the block
 
-def cbcPaddingOracleBlockAttack(cbcBlockOne, cbcBlockTwo, key, debug=nil)
-	printf("Debug Cheat Part A: %s\n", decryptAES_CBC(cbcBlockTwo, key, cbcBlockOne)) if debug == :debug
+def cbcPaddingOracleBlockAttack(cbcBlockOne, cbcBlockTwo, key)
 	blocksize = key.length 
 	
 
@@ -123,19 +133,58 @@ def cbcPaddingOracleBlockAttack(cbcBlockOne, cbcBlockTwo, key, debug=nil)
 		end
 	
 	end
-	printf("Debug Cheat Part B: %s\n", message.chars.reverse.join) if debug == :debug
 	return message.chars.reverse.join
 
 	
 end
 
-def cbcPaddingOracleAttack(iv, ciphertxt, key, debug=nil)
+def cbcPaddingOracleAttack(iv, ciphertxt, key)
 	combinedCipherStr = [iv,ciphertxt].join
 	message = []
 	breakIntoBlocks(combinedCipherStr, key.length, 2) do |blockOne, blockTwo|
-		message << cbcPaddingOracleBlockAttack(blockOne, blockTwo, key, debug)
+		message << cbcPaddingOracleBlockAttack(blockOne, blockTwo, key)
 	end
 	return message.join
 end
 
 # Challenge 18
+def aesCTROperationBlock(targetStrBlock, nounce, i, key)
+	blocksize = key.length
+	raise "Wrong nounce size" if nounce.length != blocksize/2
+	
+	# Get counter (ctr) in \x01\x00 format (little endian)
+	ctr = nounce + i.to_s.rjust(blocksize/2, "0").each_byte.to_a.reverse.map {|x| x.chr.to_i.chr}.join
+
+	raise "Wrong lengths" if targetStrBlock.length != key.length
+	
+	# We only use AES encryption in CTR mode no matter what the actual CTR operation...cool
+	# .. Wondering if you could use a hash like SHA256 in that case
+	intermediateState = encryptAES_ECB(ctr,key)
+	raise "Wrong Counter length" if ctr.length != intermediateState.length
+	
+	finalState = blockXOR(intermediateState, targetStrBlock)
+
+	return finalState
+
+end
+
+def aesCTROperation(targetStr, nounce, key)
+	message = []
+	blocksize = key.length
+	origLength = targetStr.length
+
+	# breakIntoBlocks only works on lines of blocksize multiple lengths
+	padLength = (targetStr.length.to_f/key.length.to_f).ceil*key.length
+	targetStr += "\0"*(padLength-targetStr.length)
+
+	i = 0
+	breakIntoBlocks(targetStr, blocksize, 1) do |blockOne|
+		message << aesCTROperationBlock(blockOne, nounce, i, key)
+		i += 1
+	end
+	
+	# Strip the padding we had
+	return message.join[0..origLength-1]
+end
+
+# Challenge 19

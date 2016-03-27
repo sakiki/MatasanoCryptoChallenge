@@ -73,7 +73,11 @@ def hammingDist(str1, str2)
 	return str1.bytes.zip(str2.bytes).count {|s1,s2| s1 != s2}
 end
 
-def breakIntoBlocks(line, blockSize, oneOrTwo)
+def breakIntoBlocks(line, blockSize, oneOrTwo, verbose=nil)
+	if line.length % blockSize != 0
+		puts "WARNING: breakIntoBlocks function not extracting full text.  Make sure your target string is a multiple of your blocksize" unless verbose == :quiet 
+	end
+	
 	# Holds the results of yielding
 	blockFunctionArray = []
 	
@@ -112,7 +116,7 @@ def scanForMultiByteXORKeySize(ciphertxt)
 	(2..40).each do |keysize|
 		normDistance = 0
 		hamming = Array.new 
-		hamming = breakIntoBlocks(ciphertxt, keysize, 2) do |blockOne, blockTwo|
+		hamming = breakIntoBlocks(ciphertxt, keysize, 2, :quiet) do |blockOne, blockTwo|
 		
 			#Compute hamming distance
 			hDist = hammingDist(blockOne, blockTwo)
@@ -138,8 +142,8 @@ end
 def findTransposedBlocks(ciphertxt, keysize)
 	transposedHash = {}
 	blockArray = Array.new
-	# Ignore second argument in Proc
-	blockArray = breakIntoBlocks(ciphertxt, keysize, 1) do |blockOne|
+	
+	blockArray = breakIntoBlocks(ciphertxt, keysize, 1, :quiet) do |blockOne|
 		blockOne
 	end
 	
