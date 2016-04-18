@@ -5,8 +5,8 @@
 
 require './set3Lib.rb'
 
-initialWait = rand(40..1000)
-postWait = rand(40..1000)
+initialWait = 1#rand(40..1000)
+postWait = 1#rand(40..1000)
 
 puts "Sleeping #{initialWait} seconds..."
 sleep(initialWait)

@@ -24,7 +24,6 @@ def cbcPaddingOracleEncrypt(key)
 	
 	
 	str = randomStrArray[rand(0..randomStrArray.size-1)].unpack("m").join
-	puts str
 
 	iv = randomAESKey16
 
@@ -102,7 +101,7 @@ end
 def cbcPaddingOracleBlockAttack(cbcBlockOne, cbcBlockTwo, key)
 	blocksize = key.length 
 	
-
+  
 	message = ""
 	intermediateArray = Array.new blocksize
 	
@@ -133,7 +132,7 @@ def cbcPaddingOracleBlockAttack(cbcBlockOne, cbcBlockTwo, key)
 		end
 	
 	end
-	return message.chars.reverse.join
+	return message.chars.to_a.reverse.join
 
 	
 end
@@ -148,12 +147,12 @@ def cbcPaddingOracleAttack(iv, ciphertxt, key)
 end
 
 # Challenge 18
-def aesCTROperationBlock(targetStrBlock, nounce, i, key)
+def aesCTROperationBlock(targetStrBlock, nonce, i, key)
 	blocksize = key.length
-	raise "Wrong nounce size" if nounce.length != blocksize/2
+	raise "Wrong nonce size" if nonce.length != blocksize/2
 	
 	# Get counter (ctr) in \x01\x00 format (little endian)
-	ctr = nounce + i.to_s.rjust(blocksize/2, "0").each_byte.to_a.reverse.map {|x| x.chr.to_i.chr}.join
+	ctr = nonce + i.to_s.rjust(blocksize/2, "0").each_byte.to_a.reverse.map {|x| x.chr.to_i.chr}.join
 
 	raise "Wrong lengths" if targetStrBlock.length != key.length
 	
@@ -168,7 +167,7 @@ def aesCTROperationBlock(targetStrBlock, nounce, i, key)
 
 end
 
-def aesCTROperation(targetStr, nounce, key)
+def aesCTROperation(targetStr, nonce, key)
 	message = []
 	blocksize = key.length
 	origLength = targetStr.length
@@ -179,7 +178,7 @@ def aesCTROperation(targetStr, nounce, key)
 
 	i = 0
 	breakIntoBlocks(targetStr, blocksize, 1) do |blockOne|
-		message << aesCTROperationBlock(blockOne, nounce, i, key)
+		message << aesCTROperationBlock(blockOne, nonce, i, key)
 		i += 1
 	end
 	
