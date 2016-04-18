@@ -188,3 +188,123 @@ def aesCTROperation(targetStr, nounce, key)
 end
 
 # Challenge 19
+def bruteForceCTR(ctArr,phraseToTest, i)
+	keyMult = (ctArr[i].length.to_f/phraseToTest.length.to_f).ceil
+	xorKey = (phraseToTest*keyMult)[0..ctArr[i].length-1]
+	keystream = ctArr[i].chars.zip(xorKey.chars).map {|a,b| (a.ord^b.ord).chr}.join 
+	i = 0
+	ctArr.map do |x|
+		begin
+			p i, x.chars.zip(keystream.chars).map{|a,b| (a.ord^b.ord).chr}.join 
+		rescue
+			next 
+		ensure 
+			i += 1
+		end
+	end 
+end 
+
+# Challenge 21
+class MT19937
+	INITIALSTATE = 624
+	def initialize(seed)
+		@index = INITIALSTATE
+		@mt = Array.new 
+		@mt.push(seed)
+		(1..INITIALSTATE-1).each do |i|
+			@mt[i] = (1812433253 * (@mt[i-1] ^ (@mt[i-1] >> 30 )) + i) & 0xFFFFFFFF
+		end 
+	end 
+	
+	def genRandNum
+		if @index >= INITIALSTATE
+			twist
+		end 
+		
+		y = @mt[@index]
+		y = y ^ (y >> 11)
+		y = y ^ (y << 7) & 2636928640
+		y = y ^ (y << 15) & 4022730752
+		y = y ^ (y >> 18)
+		
+		@index = @index + 1 
+		
+		return (y & 0xFFFFFFFF)
+	end 
+	
+	def twist 
+		(0..INITIALSTATE-1).each do |i| 
+			y = ((@mt[i] & 0x80000000) | (@mt[(i+1) % INITIALSTATE] & 0x7FFFFFFF)) & 0xFFFFFFFF
+			@mt[i] = @mt[(i+397) % INITIALSTATE] ^ (y >> 1)
+			@mt[i] = @mt[i] ^ 0x9908b0df if y % 2 != 0 
+			@index = 0 
+		end 
+	end 
+end 
+
+# Challenge 23 
+
+def undoRightXOR(numToUnshift, shift)
+	originalNum = numToUnshift
+	endResult = numToUnshift
+	
+	i = 1
+	while (i * shift <= 32)
+		endResult = originalNum ^ (endResult >> shift)
+		i += 1
+	end 
+	
+	# We bitwise AND because we want the 32 Least Significant bits
+	# Check: endResult.to_s(2).rjust(32, '0').chars.to_a.last(32).join 
+	return endResult & 0xFFFFFFFF
+end 
+
+def undoLeftXOR(numToUnshift, shift, andMask = nil)
+	originalNum = numToUnshift
+	endResult = numToUnshift
+	
+	i = 1 
+	while (i * shift <= 32)
+		if andMask.nil?
+			endResult = originalNum ^ (endResult << shift)
+		else 
+			endResult = originalNum ^ (endResult << shift) & andMask
+		end 
+		
+		i += 1
+	end 
+	
+	# We bitwise AND because we want the 32 Least Significant bits
+	# .. Otherwise when we left shift sometimes ruby will expand past 32 bits. 
+	# .. See: endResult.to_s(2).length 
+	return endResult & 0xFFFFFFFF
+end 
+
+def untemper(y)
+	y = undoRightXOR(y,18)
+	y = undoLeftXOR(y, 15, 4022730752)
+	y = undoLeftXOR(y, 7, 2636928640)
+	y = undoRightXOR(y, 11)
+	return (y & 0xFFFFFFFF)
+end 
+
+class MT19937CLONE < MT19937
+	def setState(stateArray)
+		@mt = stateArray
+	end 
+end 
+
+# Challenge 24 
+def makeKeyStream(length, seed)
+	randoGen = MT19937.new(seed)
+	finalOutput = Array.new
+	length.times {
+		finalOutput.push((randoGen.genRandNum % 256).chr)
+	}
+	return finalOutput
+end 
+
+def prngCTROperation(strtxt, seed)
+	keyStream = makeKeyStream(strtxt.length, seed)
+	return strtxt.chars.zip(keyStream).map { |x,y| (x.ord ^ y.ord).chr}.join 
+end 
